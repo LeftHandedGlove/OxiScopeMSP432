@@ -4,8 +4,8 @@ MSP432 application used by the OxiScope to monitor oxygen saturation and pulse r
 
 ## Peripherals Used
 
-14-bit ADC
-GPIO
-UART
-Timer
-Watchdog Timer
+14-bit ADC <br />
+GPIO <br />
+UART <br />
+Timer <br />
+Watchdog Timer <br />
