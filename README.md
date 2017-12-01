@@ -1,7 +1,6 @@
-## Example Summary
+## Summary
 
-This example is intended to be a starting point for new development where
-a fuller set of kernel features and debug capabilities are enabled.
+MSP432 application used by the OxiScope to monitor oxygen saturation and pulse rate using reflectance based pulse oximetry. Photoplethysmograms, or pulse oximetry waveforms, will be taken and processed when requested by the user and sent to the Bluetooth processor. Due to the device being battery powered, the battery level is measured and reported.
 
 ## Peripherals Exercised
 
