@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<?ccsproject version="1.0"?>
+<projectOptions>
+	<ccsVersion value="7.1.0"/>
+	<deviceVariant value="MSP432P401R"/>
+	<deviceFamily value="MSP432"/>
+	<deviceEndianness value="little"/>
+	<codegenToolVersion value="17.3.0.STS"/>
+	<isElfFormat value="true"/>
+	<connection value="common/targetdb/connections/TIXDS110_Connection.xml"/>
+	<rts value="libc.a"/>
+	<createSlaveProjects value=""/>
+	<ignoreDefaultDeviceSettings value="true"/>
+	<templateProperties value="id=empty_MSP_EXP432P401R_tirtos_ccs.projectspec.empty_MSP_EXP432P401R_tirtos_ccs,buildProfile=release,isHybrid=true,"/>
+	<origin value="C:/Users/david/Google Drive/Capstone 2017/_Software/MSP432/Project Files/OxiScope_MSP432_v1.7"/>
+	<filesToOpen value=""/>
+	<isTargetManual value="false"/>
+</projectOptions>
