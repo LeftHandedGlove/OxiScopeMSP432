@@ -49,7 +49,7 @@ void *PPG_Sampling_Task(void *arg0)
     /* Loop forever taking samples at the sampling rate */
     while (1)
     {
-//        /* Debugging, laser always on, red channel only */
+//        /* Debugging: red laser always on, red channel only */
 //        sem_wait(&G_SysHold);
 //        GPIO_write(Board_GPIO_REDGATE, GATE_ACTIVE);
 //        GPIO_write(Board_GPIO_REDLZR, LASER_ACTIVE);
@@ -59,7 +59,7 @@ void *PPG_Sampling_Task(void *arg0)
 //        sem_post(&G_PPGSamp);
 //        continue;
 
-        /* Debugging, laser always on, red channel only */
+        /* Debugging: red laser flashing, red channel only */
         sem_wait(&G_SysHold);
         GPIO_write(Board_GPIO_REDGATE, GATE_ACTIVE);
         GPIO_write(Board_GPIO_REDLZR, LASER_ACTIVE);
