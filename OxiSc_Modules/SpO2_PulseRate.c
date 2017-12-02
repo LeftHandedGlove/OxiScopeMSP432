@@ -24,7 +24,8 @@ void SpO2_PulseRate_Init(void)
     }
 
     /* Setup Light Attribute structs */
-    G_Red.rawSample = G_Ir.rawSample = 0;
+    G_Red.rawACSample = G_Ir.rawACSample = 0;
+    G_Red.rawDCSample = G_Ir.rawDCSample = 0;
     G_Red.ACFilteredSample = G_Ir.ACFilteredSample = 0;
     G_Red.DCFilteredSample = G_Ir.DCFilteredSample = 0;
     G_Red.vpp = G_Ir.vpp = 0;
@@ -95,7 +96,8 @@ void *PPG_Sampling_Task(void *arg0)
         /* Wait until the filters have saturated */
         usleep(500000 / LIGHT_SAMP_RATE);
         /* Take red sample */
-        ADC_convert(redAC_ADC, &G_Red.rawSample);
+        ADC_convert(redAC_ADC, &G_Red.rawACSample);
+        ADC_convert(redDC_ADC, &G_Red.rawDCSample);
         /* Turn off red laser & analog switch */
         GPIO_write(Board_GPIO_REDGATE, GATE_INACTIVE);
         GPIO_write(Board_GPIO_REDLZR, LASER_INACTIVE);
@@ -107,7 +109,8 @@ void *PPG_Sampling_Task(void *arg0)
         /* Wait until the filters have saturated */
         usleep(500000 / LIGHT_SAMP_RATE);
         /* Take IR samples */
-        ADC_convert(irAC_ADC, &G_Ir.rawSample);
+        ADC_convert(irAC_ADC, &G_Ir.rawACSample);
+        ADC_convert(irDC_ADC, &G_Ir.rawDCSample);
         /* Turn off IR laser & analog switch */
         GPIO_write(Board_GPIO_IRGATE, GATE_INACTIVE);
         GPIO_write(Board_GPIO_IRLZR, LASER_INACTIVE);
@@ -322,21 +325,26 @@ void *PPG_Processing_Task(void *arg0)
         sem_wait(&G_PPGSamp);
 
         /* Push raw red sample through the FIR filters */
-        dcFIRTemp = OxiScope_FIR_Filter(G_Red.rawSample, G_Red.DCInputs, FIR_LPF_0d1Hz_Coeff, DC_FIR_NUM_TAPS);
-        acFIRTemp = OxiScope_FIR_Filter(G_Red.rawSample, G_Red.ACInputs, FIR_LPF_4d5Hz_Coeff, AC_FIR_NUM_TAPS);
+        /* Filtered AC retrieved by removing the DC offset introduced by circuitry from the AC while also filtering */
+        dcFIRTemp = OxiScope_FIR_Filter(G_Red.rawACSample, G_Red.AC_DC_Inputs, FIR_LPF_0d1Hz_Coeff, DC_FIR_NUM_TAPS);
+        acFIRTemp = OxiScope_FIR_Filter(G_Red.rawACSample, G_Red.AC_AC_Inputs, FIR_LPF_4d5Hz_Coeff, AC_FIR_NUM_TAPS);
         acFIRTemp -= dcFIRTemp;
         acFIRTemp *= RED_AC_GAIN;
         acFIRTemp += AC_OFFSET;
-        G_Red.DCFilteredSample = (uint16_t)dcFIRTemp;
         G_Red.ACFilteredSample = (uint16_t)acFIRTemp;
+        /* DC is just the incoming DC put through its filter */
+        G_Red.DCFilteredSample = (uint16_t)OxiScope_FIR_Filter(G_Red.rawDCSample, G_Red.DC_Inputs, FIR_LPF_0d1Hz_Coeff, DC_FIR_NUM_TAPS);
+
         /* Push raw ir sample through the FIR filters */
-        dcFIRTemp = OxiScope_FIR_Filter(G_Ir.rawSample, G_Ir.DCInputs, FIR_LPF_0d1Hz_Coeffs, DC_FIR_NUM_TAPS);
-        acFIRTemp = OxiScope_FIR_Filter(G_Ir.rawSample, G_Ir.ACInputs, FIR_LPF_9d0Hz_Coeff, AC_FIR_NUM_TAPS);
+        /* Filtered AC retrieved by removing the DC offset introduced by circuitry from the AC while also filtering */
+        dcFIRTemp = OxiScope_FIR_Filter(G_Ir.rawACSample, G_Ir.AC_DC_Inputs, FIR_LPF_0d1Hz_Coeff, DC_FIR_NUM_TAPS);
+        acFIRTemp = OxiScope_FIR_Filter(G_Ir.rawACSample, G_Ir.AC_AC_Inputs, FIR_LPF_4d5Hz_Coeff, AC_FIR_NUM_TAPS);
         acFIRTemp -= dcFIRTemp;
-        acFIRTemp *= IR_AC_FIR_GAIN;
-        acFIRTemp += IR_AC_FIR_OFFSET;
-        G_Ir.DCFilteredSample = (uint16_t)dcFIRTemp;
+        acFIRTemp *= IR_AC_GAIN;
+        acFIRTemp += AC_OFFSET;
         G_Ir.ACFilteredSample = (uint16_t)acFIRTemp;
+        /* DC is just the incoming DC put through its filter */
+        G_Ir.DCFilteredSample = (uint16_t)OxiScope_FIR_Filter(G_Ir.rawDCSample, G_Ir.DC_Inputs, FIR_LPF_0d1Hz_Coeff, DC_FIR_NUM_TAPS);
 
         /* Stuff sample into window buffer */
         G_Red.windowBuffer[recalcCount] = G_Red.ACFilteredSample;
@@ -345,9 +353,9 @@ void *PPG_Processing_Task(void *arg0)
 
         /* Serial Port Plotter lines. ONLY USE ONE AT A TIME! */
         /* Raw red AC sample, red AC filtered sample, red DC filtered sample */
-        Display_printf(display, 0, 0, "$%d %d %d;", G_Red.rawSample, G_Red.ACFilteredSample, G_Red.DCFilteredSample);
+        Display_printf(display, 0, 0, "$%d %d %d;", G_Red.rawACSample, G_Red.ACFilteredSample, G_Red.DCFilteredSample);
         /* Raw ir AC sample, ir AC filtered sample, ir DC filtered sample */
-        Display_printf(display, 0, 0, "$%d %d %d;", G_Ir.rawSample, G_Ir.ACFilteredSample, G_Ir.DCFilteredSample);
+        Display_printf(display, 0, 0, "$%d %d %d;", G_Ir.rawACSample, G_Ir.ACFilteredSample, G_Ir.DCFilteredSample);
         /* red AC filtered sample, ir AC filtered sample */
         Display_printf(display, 0, 0, "$%d %d;", G_Red.ACFilteredSample, G_Ir.ACFilteredSample);
 

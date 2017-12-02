@@ -71,9 +71,11 @@
 /* Light Attributes Struct */
 typedef struct LightAttr
 {
-    uint16_t rawSample;
-    float ACInputs[AC_FIR_NUM_TAPS];
-    float DCInputs[DC_FIR_NUM_TAPS];
+    uint16_t rawACSample;
+    uint16_t rawDCSample;
+    float AC_DC_Inputs[AC_FIR_NUM_TAPS];
+    float AC_AC_Inputs[AC_FIR_NUM_TAPS];
+    float DC_Inputs[DC_FIR_NUM_TAPS];
     uint16_t ACFilteredSample;
     uint16_t DCFilteredSample;
     uint16_t windowBuffer[RECALC_SAMPLES];
