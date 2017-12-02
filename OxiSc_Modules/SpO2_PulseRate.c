@@ -330,11 +330,11 @@ void *PPG_Processing_Task(void *arg0)
         G_Red.DCFilteredSample = (uint16_t)dcFIRTemp;
         G_Red.ACFilteredSample = (uint16_t)acFIRTemp;
         /* Push raw ir sample through the FIR filters */
-        dcFIRTemp = OxiScope_FIR_Filter(G_Ir.rawSample, G_Ir.DCInputs, FIR_LPF_0d1Hz_Coeffs, DC_FIR_NUM_TAPS);
-        acFIRTemp = OxiScope_FIR_Filter(G_Ir.rawSample, G_Ir.ACInputs, FIR_LPF_9d0Hz_Coeff, AC_FIR_NUM_TAPS);
+        dcFIRTemp = OxiScope_FIR_Filter(G_Ir.rawSample, G_Ir.DCInputs, FIR_LPF_0d1Hz_Coeff, DC_FIR_NUM_TAPS);
+        acFIRTemp = OxiScope_FIR_Filter(G_Ir.rawSample, G_Ir.ACInputs, FIR_LPF_4d5Hz_Coeff, AC_FIR_NUM_TAPS);
         acFIRTemp -= dcFIRTemp;
-        acFIRTemp *= IR_AC_FIR_GAIN;
-        acFIRTemp += IR_AC_FIR_OFFSET;
+        acFIRTemp *= IR_AC_GAIN;
+        acFIRTemp += AC_OFFSET;
         G_Ir.DCFilteredSample = (uint16_t)dcFIRTemp;
         G_Ir.ACFilteredSample = (uint16_t)acFIRTemp;
 
