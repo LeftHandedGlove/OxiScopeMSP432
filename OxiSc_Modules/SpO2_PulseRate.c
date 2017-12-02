@@ -59,18 +59,31 @@ void *PPG_Sampling_Task(void *arg0)
 //        sem_post(&G_PPGSamp);
 //        continue;
 
-        /* Debugging: red laser flashing, red channel only */
-        sem_wait(&G_SysHold);
-        GPIO_write(Board_GPIO_REDGATE, GATE_ACTIVE);
-        GPIO_write(Board_GPIO_REDLZR, LASER_ACTIVE);
-        usleep(500000 / LIGHT_SAMP_RATE);
-        ADC_convert(redAC_ADC, &G_Red.rawSample);
-        GPIO_write(Board_GPIO_REDGATE, GATE_INACTIVE);
-        GPIO_write(Board_GPIO_REDLZR, LASER_INACTIVE);
-        usleep(500000 / LIGHT_SAMP_RATE);
-        sem_post(&G_SysHold);
-        sem_post(&G_PPGSamp);
-        continue;
+//        /* Debugging: red laser flashing, red channel only */
+//        sem_wait(&G_SysHold);
+//        GPIO_write(Board_GPIO_REDGATE, GATE_ACTIVE);
+//        GPIO_write(Board_GPIO_REDLZR, LASER_ACTIVE);
+//        usleep(500000 / LIGHT_SAMP_RATE);
+//        ADC_convert(redAC_ADC, &G_Red.rawSample);
+//        GPIO_write(Board_GPIO_REDGATE, GATE_INACTIVE);
+//        GPIO_write(Board_GPIO_REDLZR, LASER_INACTIVE);
+//        usleep(500000 / LIGHT_SAMP_RATE);
+//        sem_post(&G_SysHold);
+//        sem_post(&G_PPGSamp);
+//        continue;
+
+//        /* Debugging: ir laser flashing, ir channel only */
+//        sem_wait(&G_SysHold);
+//        GPIO_write(Board_GPIO_IRGATE, GATE_ACTIVE);
+//        GPIO_write(Board_GPIO_IRLZR, LASER_ACTIVE);
+//        usleep(500000 / LIGHT_SAMP_RATE);
+//        ADC_convert(irAC_ADC, &G_Ir.rawSample);
+//        GPIO_write(Board_GPIO_IRGATE, GATE_INACTIVE);
+//        GPIO_write(Board_GPIO_IRLZR, LASER_INACTIVE);
+//        usleep(500000 / LIGHT_SAMP_RATE);
+//        sem_post(&G_SysHold);
+//        sem_post(&G_PPGSamp);
+//        continue;
 
         /* Make sure system isn't idle */
         sem_wait(&G_SysHold);
@@ -317,20 +330,26 @@ void *PPG_Processing_Task(void *arg0)
         G_Red.DCFilteredSample = (uint16_t)dcFIRTemp;
         G_Red.ACFilteredSample = (uint16_t)acFIRTemp;
         /* Push raw ir sample through the FIR filters */
-//        dcFIRTemp = OxiScope_FIR_Filter(G_Ir.rawSample, G_Ir.DCInputs, FIR_LPF_0d1Hz_Coeffs, DC_FIR_NUM_TAPS);
-//        acFIRTemp = OxiScope_FIR_Filter(G_Ir.rawSample, G_Ir.ACInputs, FIR_LPF_9d0Hz_Coeff, AC_FIR_NUM_TAPS);
-//        acFIRTemp -= dcFIRTemp;
-//        acFIRTemp *= IR_AC_FIR_GAIN;
-//        acFIRTemp += IR_AC_FIR_OFFSET;
-//        G_Ir.DCFilteredSample = (uint16_t)dcFIRTemp;
-//        G_Ir.ACFilteredSample = (uint16_t)acFIRTemp;
+        dcFIRTemp = OxiScope_FIR_Filter(G_Ir.rawSample, G_Ir.DCInputs, FIR_LPF_0d1Hz_Coeffs, DC_FIR_NUM_TAPS);
+        acFIRTemp = OxiScope_FIR_Filter(G_Ir.rawSample, G_Ir.ACInputs, FIR_LPF_9d0Hz_Coeff, AC_FIR_NUM_TAPS);
+        acFIRTemp -= dcFIRTemp;
+        acFIRTemp *= IR_AC_FIR_GAIN;
+        acFIRTemp += IR_AC_FIR_OFFSET;
+        G_Ir.DCFilteredSample = (uint16_t)dcFIRTemp;
+        G_Ir.ACFilteredSample = (uint16_t)acFIRTemp;
 
         /* Stuff sample into window buffer */
         G_Red.windowBuffer[recalcCount] = G_Red.ACFilteredSample;
+        G_Ir.windowBuffer[recalcCount] = G_Ir.ACFilteredSample;
         recalcCount++;
 
-        /* Debugging to see what is coming in. */
+        /* Serial Port Plotter lines. ONLY USE ONE AT A TIME! */
+        /* Raw red AC sample, red AC filtered sample, red DC filtered sample */
         Display_printf(display, 0, 0, "$%d %d %d;", G_Red.rawSample, G_Red.ACFilteredSample, G_Red.DCFilteredSample);
+        /* Raw ir AC sample, ir AC filtered sample, ir DC filtered sample */
+        Display_printf(display, 0, 0, "$%d %d %d;", G_Ir.rawSample, G_Ir.ACFilteredSample, G_Ir.DCFilteredSample);
+        /* red AC filtered sample, ir AC filtered sample */
+        Display_printf(display, 0, 0, "$%d %d;", G_Red.ACFilteredSample, G_Ir.ACFilteredSample);
 
 
         /* If the required number of samples to recalculate has been reached */
@@ -343,11 +362,14 @@ void *PPG_Processing_Task(void *arg0)
             {
                 G_Red.ACFilteredSamples[WINDOW_SIZE - 1 - i] =
                 G_Red.ACFilteredSamples[WINDOW_SIZE - 1 - RECALC_SAMPLES - i];
+                G_Ir.ACFilteredSamples[WINDOW_SIZE - 1 - i] =
+                G_Ir.ACFilteredSamples[WINDOW_SIZE - 1 - RECALC_SAMPLES - i];
             }
             /* Put the new samples in the big array */
             for (i = 0; i < RECALC_SAMPLES; i++)
             {
                 G_Red.ACFilteredSamples[i] = G_Red.windowBuffer[i];
+                G_Ir.ACFilteredSamples[i] = G_Ir.windowBuffer[i];
             }
 
             /* Send them to see if new waveform chars have been found */
@@ -546,9 +568,12 @@ void *PPG_Calculate_Task(void *arg0)
 
     while (1)
     {
+        /* Wait for processed samples */
         sem_wait(&G_PPGProcess);
+
+        /* Find the voltage peak to peak and freuqency of both light sources */
         Find_Vpp_Freq(&G_Red);
-        //Find_Vpp_Freq(&G_Ir);
+        Find_Vpp_Freq(&G_Ir);
 
         /* Deal with divide by zero scenarios */
         if (G_Red.vpp < 1) { G_Red.vpp = 1; }
@@ -568,7 +593,7 @@ void *PPG_Calculate_Task(void *arg0)
                 G_SpO2 = result;
                 Display_printf(display, 0, 0, "New SpO2: %d", G_SpO2);
                 mailboxValue = 'S';
-                mq_send(G_CommMesQue, (char*)&mailboxValue, sizeof(mailboxValue), 0);
+                //mq_send(G_CommMesQue, (char*)&mailboxValue, sizeof(mailboxValue), 0);
             }
         }
         else
@@ -587,7 +612,7 @@ void *PPG_Calculate_Task(void *arg0)
                 G_PulseRate = result;
                 Display_printf(display, 0, 0, "New Pulse Rate: %d", G_PulseRate);
                 mailboxValue = 'P';
-                mq_send(G_CommMesQue, (char*)&mailboxValue, sizeof(mailboxValue), 0);
+                //mq_send(G_CommMesQue, (char*)&mailboxValue, sizeof(mailboxValue), 0);
             }
         }
         else
